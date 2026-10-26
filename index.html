@@ -536,7 +536,18 @@ const coordAt = (q, t) => q.a + t * q.c;   // 座標の 問題（1目盛り ＝ 
 const coordCs = (m, n, io) => { const D = io === 'in' ? m + n : Math.abs(m - n); return [1, 2, 3, 4, 6].filter(c => D * c >= 4 && D * c <= 12 && Math.max(m, n) * c <= 12); };
 
 // ---------- 選択肢 ----------
-const PLACES = [['mid', 'A と B の 間'], ['outA', 'A の 外'], ['outB', 'B の 外'], ['none', '点は ない']];
+// 場所を えらぶ 形：数直線の 3つの 場所（左の 外・2点の 間・右の 外）を タップ。点が ない ときは「点は ない」ボタン
+const AREA = ['place', 'placeSame', 'placeST', 'pair'];
+const pairQ = q => Object.assign({}, q, { m: q.n, n: q.m });   // まぼろし 1：n:m に 外分する 点 Q
+function areaAt(q, fx) {   // 図を タップした 横の 位置 → 'mid'・'outA'・'outB'（2点の すぐ そばは えらばない）
+  const L = nl(q), a = nlFx(L, Math.min(L.A, L.B)), b = nlFx(L, Math.max(L.A, L.B)), e = 0.012, left = L.A < L.B ? 'outA' : 'outB';
+  if (fx < 0.015 || fx > 0.985 || Math.abs(fx - a) < e || Math.abs(fx - b) < e) return null;
+  return fx < a ? left : fx > b ? (left === 'outA' ? 'outB' : 'outA') : 'mid';
+}
+function areaFx(q, key) {   // その 場所の まんなかの 横の 位置（指の 印など）
+  const L = nl(q), a = nlFx(L, Math.min(L.A, L.B)), b = nlFx(L, Math.max(L.A, L.B)), leftKey = L.A < L.B ? 'outA' : 'outB';
+  return key === 'mid' ? (a + b) / 2 : key === leftKey ? (0.015 + a) / 2 : (b + 0.985) / 2;
+}
 function placeTypes(q, key) {
   const right = placeOf(q);
   if (key === right) return [];
@@ -550,7 +561,6 @@ function makeOptions(q, rng) {
   const c = [], add = (text, key, types) => c.push({ text, key: String(key), types });
   const m = q.m, n = q.n, mode = q.mode;
   let fixed = false;
-  if (mode === 'place' || mode === 'placeSame' || mode === 'placeST') { fixed = true; PLACES.forEach(([k, t]) => add(t, k, placeTypes(q, k))); }
   if (mode === 'readIn' || mode === 'readOut') {   // 図の 点 P の 比（値が 同じ ものは 1つだけ）
     const d = nl(q).D, seen = [];
     const cand = [[m, n, []], [n, m, ['swap']]].concat(q.io === 'in'
@@ -563,10 +573,6 @@ function makeOptions(q, rng) {
     const cand = q.io === 'in' ? [[s, []], [d, ['diff']], [s + 1, ['pts']], [m, ['one']], [n, ['one']]]
       : [[d, []], [s, ['sum']], [d + 1, ['pts']], [Math.min(m, n), ['one']], [Math.max(m, n), ['one']]];
     cand.forEach(([k, t]) => { if (k < 1 || seen.has(k)) return; seen.add(k); add(k === 1 ? 'AB と 同じ 長さ' : 'AB の {1|' + k + '}', k, t); });
-  }
-  if (mode === 'pair') {   // m:n と n:m の 外分
-    const P = m < n ? 'A' : 'B', Q = m < n ? 'B' : 'A', T = (x, y) => 'P は ' + x + ' の 外、Q は ' + y + ' の 外';
-    add(T(P, Q), 'r', []); add(T(Q, P), 's', ['side']); add(T(P, P), 'p', ['side']); add(T(Q, Q), 'q', ['side']);
   }
   if (mode === 'coord') {   // 座標（線分BA）
     const L = nl(q), seen = new Set();
@@ -585,12 +591,12 @@ function makeOptions(q, rng) {
 function texts(q) {
   const s = segStr(q), r = ratioStr(q), io = IO_JP[q.io];
   const T = {
-    place: () => [['▼ どこに 出る？', s + ' を ' + r + ' に ' + io + 'する 点は どこ？'], [s + ' を ' + r + ' に ' + io + 'する 点 P は、次の どこに あるか。']],
+    place: () => [['▼ どこに 出る？', s + ' を ' + r + ' に ' + io + 'する 点は どこ？'], [s + ' を ' + r + ' に ' + io + 'する 点 P の ある 場所を、図で 選べ。']],
     tapIn: () => [['▼ 点を タップ', s + ' を ' + r + ' に ' + io + 'する 点を タップ'], [s + ' を ' + r + ' に ' + io + 'する 点 P を 図示せよ。']],
     readIn: () => [['▼ 比を 読む', '図の 点 P は ' + s + ' を どんな 比に ' + io + 'する？'], ['図の 点 P は、' + s + ' を どのような 比に ' + io + 'するか。']],
     stepIn: () => [['▼ 1歩の 長さ', s + ' を ' + r + ' に ' + io + '。1歩は AB の どれだけ？'], [s + ' を ' + r + ' に ' + io + 'する 点を、AB を 等分して とる。1目盛りの 長さは AB の 何倍か。']],
-    pair: () => [['▼ 2つの 外分', '線分AB を ' + q.m + ':' + q.n + ' に 外分する 点 P と、' + q.n + ':' + q.m + ' に 外分する 点 Q は？'],
-      ['線分AB を ' + q.m + ':' + q.n + ' に 外分する 点を P、' + q.n + ':' + q.m + ' に 外分する 点を Q と する。P、Q は それぞれ どこに あるか。']],
+    pair: () => [['▼ 2つの 外分', '図の P は 線分AB を ' + q.m + ':' + q.n + ' に 外分する 点。' + q.n + ':' + q.m + ' に 外分する 点 Q は どこ？'],
+      ['図の 点 P は 線分AB を ' + q.m + ':' + q.n + ' に 外分する 点で ある。' + q.n + ':' + q.m + ' に 外分する 点 Q の ある 場所を、図で 選べ。']],
     coord: () => { const L = nl(q), A = 'A(' + num(coordAt(q, L.A)) + ')', B = 'B(' + num(coordAt(q, L.B)) + ')';
       return [['▼ 座標は？', '2点 ' + A + '、' + B + ' で、' + s + ' を ' + r + ' に ' + io + 'する 点の 座標は？'], ['数直線 上の 2点 ' + A + '、' + B + ' に ついて、' + s + ' を ' + r + ' に ' + io + 'する 点の 座標を 求めよ。']]; },
   };
@@ -599,14 +605,15 @@ function texts(q) {
 }
 
 // ---------- 理由（まちがえた ときに 出す）----------
+const sideW = (q, X) => { const L = nl(q), x = X === 'A' ? L.A : L.B, y = X === 'A' ? L.B : L.A; return x < y ? '左' : '右'; };   // 図で X が B（A）より 左か 右か → 外は その がわ
 function reasonLines(q) {
   const L = nl(q), S = q.st === 'B' ? 'B' : 'A', E = S === 'A' ? 'B' : 'A', m = q.m, n = q.n, out = [], mode = q.mode;
   const add = s => out.push(s);
   if (mode === 'pair') {
     const P = m < n ? 'A' : 'B', Q = m < n ? 'B' : 'A';
     const few = (a, b) => (a < b ? 'A（' + a + '歩）' : 'B（' + b + '歩）');
-    add(m + ':' + n + ' に 外分 → 歩数が 少ないのは ' + few(m, n) + ' → P は ' + P + ' の 外');
-    add(n + ':' + m + ' に 外分 → 歩数が 少ないのは ' + few(n, m) + ' → Q は ' + Q + ' の 外');
+    add(m + ':' + n + ' に 外分 → 歩数が 少ないのは ' + few(m, n) + ' → P は ' + P + ' より ' + sideW(q, P));
+    add(n + ':' + m + ' に 外分 → 歩数が 少ないのは ' + few(n, m) + ' → Q は ' + Q + ' より ' + sideW(q, Q));
     add('左右の 数を 入れかえると、反対がわの 外に 出る');
     return out;
   }
@@ -616,7 +623,7 @@ function reasonLines(q) {
   else if (q.io === 'in') add('内分 → 寄り道は ' + S + ' と ' + E + ' の 間' + (m === n ? '（歩数が 同じ → ちょうど まんなか）' : '。' + S + ' から ' + E + ' までは ' + m + ' ＋ ' + n + ' ＝ ' + (m + n) + '歩'));
   else {
     const few = m < n ? S : E;
-    add('外分 → 歩数が 少ないのは ' + few + ' の がわ → 寄り道は ' + few + ' の 外');
+    add('外分 → 歩数が 少ないのは ' + few + ' の がわ → 寄り道は ' + few + ' より ' + sideW(q, few));
     add('もどる ' + Math.min(m, n) + '歩を 引いて、' + S + ' から ' + E + ' までは ' + Math.max(m, n) + ' − ' + Math.min(m, n) + ' ＝ ' + L.D + '歩');
   }
   if (L.k > 1) add('1目盛りは 1歩 では ない：A から B までの ' + L.D * L.k + '目盛りが ' + L.D + '歩 → 1歩 ＝ ' + L.k + '目盛り');
@@ -713,6 +720,7 @@ function build(prm, rng, opt = {}) {
   const q = prm, form = q.f || q.mode, lv = FORM_LV[form];
   const p = { lv, kind: 'fwd', prm, mode: q.mode, form };
   if (TAP.includes(q.mode)) p.answer = { pos: nl(q).ans };
+  else if (AREA.includes(q.mode)) { p.answer = { place: placeOf(q.mode === 'pair' ? pairQ(q) : q) }; p.noneBtn = q.mode !== 'pair'; }
   else p.options = makeOptions(q, rng);
   const [short, exam] = texts(q);
   [p.label, p.display] = short;
@@ -729,7 +737,7 @@ function build(prm, rng, opt = {}) {
 }
 
 // ---------- 判定・間違い方の 見分け ----------
-function judge(p, ans) { return p.options ? p.options[ans.opt].correct : ans.pos === p.answer.pos; }
+function judge(p, ans) { return p.options ? p.options[ans.opt].correct : p.answer.place ? ans.place === p.answer.place : ans.pos === p.answer.pos; }
 function tapTypes(q, x) {
   const L = nl(q), lo = Math.min(L.A, L.B), hi = Math.max(L.A, L.B);
   if (x === L.ans) return [];
@@ -743,7 +751,11 @@ function tapTypes(q, x) {
   if (x >= lo && x <= hi) return ['inout'];
   return (L.ans < lo) !== (x < lo) ? ['side'] : ['count'];
 }
-function classify(p, ans) { return { types: p.options ? p.options[ans.opt].types.slice() : tapTypes(p.prm, ans.pos) }; }
+function classify(p, ans) {
+  if (p.options) return { types: p.options[ans.opt].types.slice() };
+  if (p.answer.place) return { types: placeTypes(p.mode === 'pair' ? pairQ(p.prm) : p.prm, ans.place) };
+  return { types: tapTypes(p.prm, ans.pos) };
+}
 const TYPE_TEXT = {
   inout: '内分は スタートと ゴールの 間、外分は 間では ない 所に 寄る', side: '外分は 歩数が 少ないほうの 外に 出る',
   same: '歩数が 同じ 外分は、もどると スタートに 着くだけで ゴールに 着かない → 点は ない', none: '歩数が ちがえば 外分する 点は ある（内分する 点は いつも ある）',
@@ -840,7 +852,7 @@ function record(ctx, p, ok, cls, ms) {
 }
 
 G.ZukeiCore = {
-  FIG, PAIRS, IN_PAIRS, OUT_PAIRS, MAB_IN, MAB_OUT, coordCs, nl, nlFx, nlAt, placeOf, coordAt, swapST, PLACES, TAP, INTRO, DATA_V, migrateProg, migrateZk,
+  FIG, PAIRS, IN_PAIRS, OUT_PAIRS, MAB_IN, MAB_OUT, coordCs, nl, nlFx, nlAt, placeOf, coordAt, swapST, AREA, areaAt, areaFx, pairQ, TAP, INTRO, DATA_V, migrateProg, migrateZk,
   CHAPTERS, NORM_CH, FORM_LV, MONSTERS, monsterOf, zukanAfter, zukanCount, GEN, genPrm, makeOptions, build, figKey, judge, classify, tapTypes,
   describe, masterText, likeOK, TYPE_TEXT, MASTER_TEXT, MID_HP, FINAL_HP, zakoHP, midHP, finalHP, CRIT, comboBonus, damage, makeSlots,
   newContext, makeProblem, record, mulberry32,
@@ -865,7 +877,7 @@ const ZK_KEY = 'zukei-zukan', PROG_KEY = 'zukei-progress', TUT_KEY = 'zukei-tut'
 const state = {
   ch: 1, slots: [], slotIdx: 0, hp: 1, maxHp: 1, lives: MAX_LIVES, combo: 0,
   problem: null,
-  sel: { pos: null },   // タップで えらんだ 目盛り
+  sel: { pos: null, place: null },   // タップで えらんだ 目盛り・場所
   opt: -1,              // 4択で えらんだ もの
   phase: 'idle',        // 'play' | 'busy' | 'next'
   reveal: false, view: 'ans', tut: null, blinkOn: false,
@@ -882,6 +894,7 @@ const FR = (a, b) => '<span class="fr"><span class="nu">' + a + '</span><span cl
 function mathHTML(text) { return esc(text).replace(/\{([^{}|]*)\|([^{}]*)\}/g, (m, a, b) => FR(a, b)); }
 const p = () => state.problem;
 const tapMode = q => !!q && !q.options;
+const isArea = q => !!q && !!q.answer && !!q.answer.place;
 
 // ---------- 図鑑の きろく ----------
 let memZk = { _v: C.DATA_V };
@@ -980,7 +993,16 @@ function renderControls() {
   renderMapBtn();
   const q = p(), next = state.phase === 'next', hasOpt = !!q && !!q.options, n = hasOpt ? q.options.length : 0;
   $('controls').classList.toggle('three', n === 3);
-  optBtns.forEach((b, i) => {
+  const nb = !!q && !!q.noneBtn, nbEl = optBtns[0];
+  nbEl.classList.toggle('full', nb);
+  if (nb) {   // 点が ない ときの ボタン（1つだけ）
+    show(nbEl, true); optBtns.slice(1).forEach(b => show(b, false));
+    nbEl.textContent = '点は ない'; nbEl.dataset.text = '点は ない';
+    nbEl.classList.toggle('on', state.sel.place === 'none' && !state.reveal);
+    nbEl.classList.toggle('right', state.reveal && q.answer.place === 'none');
+    nbEl.classList.toggle('wrong', state.reveal && state.sel.place === 'none' && q.answer.place !== 'none');
+  }
+  if (!nb) optBtns.forEach((b, i) => {
     show(b, hasOpt && i < n);
     if (!hasOpt || i >= n) return;
     const t = q.options[i].text;
@@ -1015,6 +1037,7 @@ function ready() {
   const q = p();
   if (!q || state.phase !== 'play') return false;
   if (q.options) return state.opt >= 0;
+  if (isArea(q)) return state.sel.place !== null;
   return state.sel.pos !== null;
 }
 function setMessage(text) { $('msgText').innerHTML = mathHTML(text); $('message').scrollTop = 0; }
@@ -1076,7 +1099,17 @@ function draw() {
   // 目盛り
   if (TICK_MODES.includes(m.mode) || rev) for (let t = L.lo; t <= L.hi; t++) seg(ctx, g, X(t), g.y - 6 * d, X(t), g.y + 6 * d, GRAY, 1.4);
   // チュートリアル：押す 目盛りを 光らせる
-  if (state.tut && state.tut.step === 'tap' && state.blinkOn && L.ans !== null) dotAt(ctx, g, X(L.ans), HINT_COL, 14);
+  if (state.tut && state.tut.step === 'tap' && state.blinkOn && L.ans !== null && !isArea(q)) dotAt(ctx, g, X(L.ans), HINT_COL, 14);
+  // 場所を えらぶ 形：えらんだ 場所（青）・正しい 場所（きいろ）を 数直線の 上に 太い 線で（三角不等式の 弧と 同じ）
+  if (isArea(q)) {
+    const lo = Math.min(L.A, L.B), hi = Math.max(L.A, L.B), leftKey = L.A < L.B ? 'outA' : 'outB';
+    const span = key => (key === 'mid' ? [X(lo), X(hi)] : key === leftKey ? [0.015 * g.W, X(lo)] : [X(hi), 0.985 * g.W - 8 * d]);
+    const band = (key, col, w) => { if (!key || key === 'none') return; const [x0, x1] = span(key); ctx.lineCap = 'round'; seg(ctx, g, x0, g.y, x1, g.y, col, w); ctx.lineCap = 'butt'; };
+    if (state.tut && state.tut.step === 'tap' && state.blinkOn) band(q.answer.place, HINT_COL, 16);
+    if (vk === 'ans' && rev) band(q.answer.place, YEL, 7);
+    else band(state.sel.place, BLUE, 7);
+  }
+  if (m.mode === 'pair' && !(vk === 'ans' && rev)) { dotAt(ctx, g, X(L.ans), CYAN, 6.5); textAt(ctx, g, 'P', pX(L.ans), letY, CYAN, 'center', 15); }
   // 答え：スタート → 寄り道（オレンジ、上）、寄り道 → ゴール（青、下）
   const showAns = vk === 'ans' && rev;
   if (showAns && m.mode === 'pair') {
@@ -1125,10 +1158,11 @@ function drawCaption(ctx, g, q) {   // ミスの あと：いま どちらの �
 canvas.addEventListener('click', e => {
   const q = p();
   if (state.phase !== 'play' || !tapMode(q)) return;
-  const rect = canvas.getBoundingClientRect(), hit = C.nlAt(q.prm, (e.clientX - rect.left) / rect.width);
+  const rect = canvas.getBoundingClientRect(), fx = (e.clientX - rect.left) / rect.width, hit = isArea(q) ? C.areaAt(q.prm, fx) : C.nlAt(q.prm, fx);
   if (hit === null) return;
   if (state.tut) { tutTap(hit); return; }
-  state.sel.pos = state.sel.pos === hit ? null : hit;
+  if (isArea(q)) state.sel.place = state.sel.place === hit ? null : hit;
+  else state.sel.pos = state.sel.pos === hit ? null : hit;
   draw(); renderControls();
 });
 
@@ -1146,8 +1180,8 @@ function showDamage(text, color) {
 function showLevelUp() { const el = document.createElement('div'); el.className = 'level-up'; el.textContent = 'LEVEL UP!'; gameEl.appendChild(el); setTimeout(() => el.remove(), 1800); }
 
 // ---------- 進行 ----------
-function hint() { return p().options ? 'えらんで けってい' : '数直線の 目盛りを タップ → けってい'; }
-function resetInput() { state.sel = { pos: null }; state.opt = -1; state.reveal = false; state.view = 'ans'; }
+function hint() { const q = p(); return q.options ? 'えらんで けってい' : isArea(q) ? (q.noneBtn ? '寄り道の ある 場所を 数直線で タップ（点が ない ときは「点は ない」）→ けってい' : '点 Q の ある 場所を 数直線で タップ → けってい') : '数直線の 目盛りを タップ → けってい'; }
+function resetInput() { state.sel = { pos: null, place: null }; state.opt = -1; state.reveal = false; state.view = 'ans'; }
 function newProblem() {
   if (state.slotIdx >= state.slots.length) {   // ボスは HP が のこる かぎり 出す
     const c = chap(), lv = c.final ? 1 + Math.floor(rng() * C.FINAL_HP) : c.lv;
@@ -1174,7 +1208,7 @@ function startChapter(ch) {
   if (c.intro && intro) { $('defClose').textContent = '▶ たたかう'; $('defScreen').classList.remove('hidden'); $('defScreen').scrollTop = 0; }   // 第1章の まえに 約束を 見せる
   setMessage((c.final ? c.boss.name + 'が あらわれた！\nここからは 問題集の ことばで 出るぞ！' : c.title + '\n' + appear()) + '\n' + hint());
 }
-function answerNow() { return p().options ? { opt: state.opt } : { pos: state.sel.pos }; }
+function answerNow() { const q = p(); return q.options ? { opt: state.opt } : isArea(q) ? { place: state.sel.place } : { pos: state.sel.pos }; }
 function submit() {
   const q = p();
   if (state.phase !== 'play' || !q) return;
@@ -1345,14 +1379,14 @@ function next() { if (state.phase !== 'next' || !state.onNext) return; const cb 
 // ---------- チュートリアル ----------
 const TUT = [
   { prm: { mode: 'place', io: 'in', m: 2, n: 1, st: 'A', rv: 0 },
-    msg: '【れんしゅう 1/3】2:1 は スタート A から 寄り道まで 2歩、寄り道から ゴール B まで 1歩。\n内分は スタートと ゴールの 間に 寄る。「A と B の 間」を えらぼう',
-    wrongOpt: '内分は スタートと ゴールの 間に 寄るよ' },
+    msg: '【れんしゅう 1/3】2:1 は スタート A から 寄り道まで 2歩、寄り道から ゴール B まで 1歩。\n内分は スタートと ゴールの 間に 寄る。数直線の A と B の 間を タップしよう',
+    wrongTap: '内分は スタートと ゴールの 間に 寄るよ。点滅して いる ところ（A と B の 間）を タップしてね' },
   { prm: { mode: 'tapIn', io: 'in', m: 2, n: 1, st: 'A', rv: 0 },
     msg: '【れんしゅう 2/3】1目盛り ＝ 1歩。A から 2歩 進んだ 目盛りを タップしよう（そこから 1歩で ちょうど B）',
     wrongTap: 'そこじゃないよ。点滅して いる 目盛り（A から 2歩）を タップしてね' },
   { prm: { mode: 'place', io: 'out', m: 1, n: 3, st: 'A', rv: 0 },
-    msg: '【れんしゅう 3/3】外分は 間では ない 所に 寄る。1:3 は A まで 1歩、B まで 3歩。\n歩数が 少ないのは A → 寄り道は A の 外。「A の 外」を えらぼう',
-    wrongOpt: '歩数が 少ないのは A（1歩）。寄り道は A の 外だよ' },
+    msg: '【れんしゅう 3/3】外分は 間では ない 所に 寄る。1:3 は A まで 1歩、B まで 3歩。\n歩数が 少ないのは A → 寄り道は A より 左。点滅して いる ところを タップしよう',
+    wrongTap: '歩数が 少ないのは A（1歩）。寄り道は A より 左だよ。点滅して いる ところを タップしてね' },
 ];
 function tutDone() { try { return localStorage.getItem(TUT_KEY) === '1'; } catch (e) { return false; } }
 let pulseId = null;
@@ -1377,8 +1411,8 @@ function startBlink() { stopBlink(); state.blinkOn = true; blinkTimer = setInter
 function stopBlink() { if (blinkTimer) clearInterval(blinkTimer); blinkTimer = null; state.blinkOn = false; $('tapHint').classList.add('hidden'); }
 function placeTapHint() {   // 指の 輪の まんなかを 押す 目盛りに
   if (!state.tut || state.tut.step !== 'tap') return;
-  const cr = canvas.getBoundingClientRect(), wr = wrap.getBoundingClientRect(), L = C.nl(p().prm);
-  $('tapHint').style.left = (cr.left - wr.left + C.nlFx(L, L.ans) * cr.width) + 'px';
+  const cr = canvas.getBoundingClientRect(), wr = wrap.getBoundingClientRect(), q = p(), L = C.nl(q.prm);
+  $('tapHint').style.left = (cr.left - wr.left + (isArea(q) ? C.areaFx(q.prm, q.answer.place) : C.nlFx(L, L.ans)) * cr.width) + 'px';
   $('tapHint').style.top = (cr.top - wr.top + C.FIG.Y * cr.height) + 'px';
 }
 function startTutorial() {
@@ -1403,9 +1437,10 @@ function tutProblem() {
 function tutTap(hit) {
   const q = p(), t = TUT[state.tut.i];
   if (state.tut.step !== 'tap') return;
-  if (hit !== q.answer.pos) { setMessage(t.wrongTap); return; }
+  if (hit !== (isArea(q) ? q.answer.place : q.answer.pos)) { setMessage(t.wrongTap); return; }
   stopBlink();
-  state.sel.pos = hit; state.tut.step = 'decide'; setMessage('さいごに「けってい」を おそう'); pulse('decideBtn');
+  if (isArea(q)) state.sel.place = hit; else state.sel.pos = hit;
+  state.tut.step = 'decide'; setMessage('さいごに「けってい」を おそう'); pulse('decideBtn');
   draw(); renderControls();
 }
 function tutOpt(i) {
@@ -1435,6 +1470,7 @@ function endTutorial() {
 // ---------- 操作 ----------
 optBtns.forEach((b, i) => b.addEventListener('click', () => {
   if (state.phase !== 'play') return;
+  if (p() && p().noneBtn) { if (state.tut) { setMessage(TUT[state.tut.i].wrongTap); return; } state.sel.place = state.sel.place === 'none' ? null : 'none'; renderControls(); draw(); return; }
   if (state.tut) { tutOpt(i); return; }
   state.opt = i; renderControls();
 }));
