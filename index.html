@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:;">
-<title>図形クエスト（内分・外分）</title>
+<title>内分・外分クエスト</title>
 <style>
   /* ===================== レトロRPG風CSS（三角比クエストと共通） ===================== */
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
@@ -317,8 +317,8 @@ padding: 14px 0; text-shadow: 3px 3px 0 #400; animation: warn 2s forwards;
 
   <div class="overlay" id="titleScreen">
     <div class="hero">📍</div>
-    <h1>図形<br>クエスト</h1>
-    <p class="sub">～内分・外分～</p>
+    <h1>内分・外分<br>クエスト</h1>
+    <p class="sub">～数学A 図形の性質～</p>
     <p class="comp hidden" id="compTitle"></p>
     <p style="margin-top:20px;">スタート・寄り道・ゴール。<br>歩数で 点の 場所を みきわめろ！</p>
     <button class="start-btn" id="startBtn">▶ はじめる</button>
@@ -851,7 +851,7 @@ function record(ctx, p, ok, cls, ms) {
   return ev;
 }
 
-G.ZukeiCore = {
+G.NaibunCore = {
   FIG, PAIRS, IN_PAIRS, OUT_PAIRS, MAB_IN, MAB_OUT, coordCs, nl, nlFx, nlAt, placeOf, coordAt, swapST, AREA, areaAt, areaFx, pairQ, TAP, INTRO, DATA_V, migrateProg, migrateZk,
   CHAPTERS, NORM_CH, FORM_LV, MONSTERS, monsterOf, zukanAfter, zukanCount, GEN, genPrm, makeOptions, build, figKey, judge, classify, tapTypes,
   describe, masterText, likeOK, TYPE_TEXT, MASTER_TEXT, MID_HP, FINAL_HP, zakoHP, midHP, finalHP, CRIT, comboBonus, damage, makeSlots,
@@ -863,7 +863,7 @@ G.ZukeiCore = {
 <script>
 (function () {
 'use strict';
-const C = window.ZukeiCore;
+const C = window.NaibunCore;
 const MAX_LIVES = 3;
 const rng = Math.random;
 const $ = id => document.getElementById(id);
@@ -872,7 +872,7 @@ const wrap = $('planeWrap');
 const gameEl = $('game');
 const monsterEl = $('monster');
 const optBtns = [...document.querySelectorAll('#controls .opt')];
-const ZK_KEY = 'zukei-zukan', PROG_KEY = 'zukei-progress', TUT_KEY = 'zukei-tut';
+const ZK_KEY = 'naibun-gaibun-zukan', PROG_KEY = 'naibun-gaibun-progress', TUT_KEY = 'naibun-gaibun-tut';
 
 const state = {
   ch: 1, slots: [], slotIdx: 0, hp: 1, maxHp: 1, lives: MAX_LIVES, combo: 0,
