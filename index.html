@@ -635,7 +635,7 @@ function makeOptions(q, rng) {
     const s = m + n, d = Math.abs(m - n), seen = new Set();
     const cand = q.io === 'in' ? [[s, []], [d, ['diff']], [s + 1, ['pts']], [m, ['one']], [n, ['one']]]
       : [[d, []], [s, ['sum']], [d + 1, ['pts']], [Math.min(m, n), ['one']], [Math.max(m, n), ['one']]];
-    cand.forEach(([k, t]) => { if (k < 1 || seen.has(k)) return; seen.add(k); add(k === 1 ? 'AB が そのまま 1歩' : 'AB を ' + k + '等分', k, t); });
+    cand.forEach(([k, t]) => { if (k < 1 || seen.has(k)) return; seen.add(k); add(k === 1 ? 'AB が そのまま 比の 1つ分' : 'AB を ' + k + '等分', k, t); });
   }
   if (isMas(q) && q.st2 !== 2) {   // ① 1歩は 何マス？（{マス|歩}）
     const D = masD(q), alt = q.io === 'in' ? Math.abs(m - n) : m + n;
@@ -688,7 +688,7 @@ function texts(q) {
     place: () => [['▼ どの 範囲？', s + ' を ' + r + ' に ' + io + 'する 点は どの 範囲に ある？'], [s + ' を ' + r + ' に ' + io + 'する 点 P は どの 範囲に あるか、図で 選べ。']],   // 「どこ」だと 1点を 指そうと するので「どの 範囲」（10-31 先生）
     tapIn: () => [['▼ 点を タップ', s + ' を ' + r + ' に ' + io + 'する 点を タップ'], [s + ' を ' + r + ' に ' + io + 'する 点 P を 図示せよ。']],
     readIn: () => [['▼ 比を 読む', '図の 点 P は ' + s + ' を どんな 比に ' + io + 'する？'], ['図の 点 P は、' + s + ' を どのような 比に ' + io + 'するか。']],
-    stepIn: () => [['▼ 何等分？', s + ' を ' + r + ' に ' + io + '。1歩は AB を 何等分した 長さ？'], [s + ' を ' + r + ' に ' + io + 'する 点を 作図する。AB を 何等分 するか。']],   // 先生の ノート：「スタートから ゴールを 3等分した とき スタートから 2番目の 点」（11-01）
+    stepIn: () => [['▼ 何等分？', s + ' を ' + r + ' に ' + io + '。比の 1つ分（1歩）は AB を 何等分した 長さ？'], [s + ' を ' + r + ' に ' + io + 'する 点を 作図する。AB を 何等分 するか。']],   // 「歩」は 授業の ことば → 問題文は「比の 1つ分（1歩）」（11-02 先生）   // 先生の ノート：「スタートから ゴールを 3等分した とき スタートから 2番目の 点」（11-01）
     pair: () => [['▼ 2つの 外分', '図の P は 線分AB を ' + q.m + ':' + q.n + ' に 外分する 点。' + q.n + ':' + q.m + ' に 外分する 点 Q は どの 範囲に ある？'],
       ['図の 点 P は 線分AB を ' + q.m + ':' + q.n + ' に 外分する 点で ある。' + q.n + ':' + q.m + ' に 外分する 点 Q は どの 範囲に あるか、図で 選べ。']],
     coord: () => { const L = nl(q), A = 'A(' + num(coordAt(q, L.A)) + ')', B = 'B(' + num(coordAt(q, L.B)) + ')';
@@ -700,17 +700,17 @@ function texts(q) {
   if ((q.mode === 'tapIn' || q.mode === 'tapOut') && !q.k && q.st2 !== 2)   // 連れ問 ①：見当（位置関係が 決まってから 歩の 区切り）
     return [['▼ ① どの 範囲？', s + ' を ' + r + ' に ' + io + 'する 点は どの 範囲に ある？'], [s + ' を ' + r + ' に ' + io + 'する 点 P を 図示せよ。まず、P は どの 範囲に あるか。']];
   if ((q.mode === 'tapIn' || q.mode === 'tapOut') && q.st2 === 2)
-    return [['▼ ② 何歩め？', s + ' を ' + r + ' に ' + io + 'する 点を タップ（区切りは 1歩）'], [s + ' を ' + r + ' に ' + io + 'する 点 P を 図示せよ。']];
+    return [['▼ ② 何歩め？', s + ' を ' + r + ' に ' + io + 'する 点を タップ（区切りは 比の 1つ分）'], [s + ' を ' + r + ' に ' + io + 'する 点 P を 図示せよ。']];
   return T[q.mode]();
 }
 function masTexts(q) {
   const s = segStr(q), r = ratioStr(q), io = IO_JP[q.io], D = masD(q), S = fracStr(q.L, D);
   const AB = q.a ? '2点 A(' + num(q.a) + ')、B(' + num(q.a + q.L) + ')' : 'AB ＝ ' + q.L + 'マス', what = q.a ? 'P の 座標' : 'AP';
-  if (q.st2 !== 2) return [['▼ ① 1歩は 何マス？', AB + '。' + s + ' を ' + r + ' に ' + io + 'する 点 P。1歩は 何マス？'],
-    [(q.a ? '数直線 上の ' + AB + ' に ついて、' : '線分AB の 長さが ' + q.L + ' の とき、') + s + ' を ' + r + ' に ' + io + 'する 点 P の ' + (q.a ? '座標' : 'AP の 長さ') + 'を 求めよ。まず 1歩分の 長さは？']];
+  if (q.st2 !== 2) return [['▼ ① 比の 1つ分は 何マス？', AB + '。' + s + ' を ' + r + ' に ' + io + 'する 点 P。比の 1つ分（1歩）は 何マス？'],
+    [(q.a ? '数直線 上の ' + AB + ' に ついて、' : '線分AB の 長さが ' + q.L + ' の とき、') + s + ' を ' + r + ' に ' + io + 'する 点 P の ' + (q.a ? '座標' : 'AP の 長さ') + 'を 求めよ。まず 比の 1 あたりの 長さは？']];
   const head = (q.a ? '数直線 上の ' + AB + ' に ついて、' : '線分AB の 長さが ' + q.L + ' の とき、') + s + ' を ' + r + ' に ' + io + 'する 点 P。';   // ② でも 問題を のこす（P の 位置を 忘れないように。11-01 先生）
-  return [['▼ ② ' + what + 'は？', '1歩 ＝ ' + S + 'マス。' + s + ' を ' + r + ' に ' + io + 'する 点 P。' + what + 'は？'],
-    [head + '1歩分の 長さは ' + S + '。' + (q.a ? 'P の 座標' : 'AP の 長さ') + 'を 求める 式は？']];
+  return [['▼ ② ' + what + 'は？', '比の 1つ分 ＝ ' + S + 'マス。' + s + ' を ' + r + ' に ' + io + 'する 点 P。' + what + 'は？'],
+    [head + '比の 1 あたりの 長さは ' + S + '。' + (q.a ? 'P の 座標' : 'AP の 長さ') + 'を 求める 式は？']];
 }
 function triTexts(q) {
   const tri = '△ABC で、AB ＝ ' + q.c + '、AC ＝ ' + q.b + ' と する。';
@@ -749,7 +749,7 @@ function triReason(q) {
 function masReason(q) {
   const out = [], add = s => out.push(s), D = masD(q), S = fracStr(q.L, D), m = q.m, n = q.n;
   add(ratioStr(q) + ' に ' + IO_JP[q.io] + ' → A から B までは ' + (q.io === 'in' ? m + ' ＋ ' + n : Math.max(m, n) + ' − ' + Math.min(m, n)) + ' ＝ ' + D + '歩');
-  add('1歩 ＝ {マス|歩} ＝ {' + q.L + '|' + D + '}' + (fracStr(q.L, D) !== '{' + q.L + '|' + D + '}' ? ' ＝ ' + S : '') + ' マス');
+  add('比の 1つ分（1歩）＝ {マス|歩} ＝ {' + q.L + '|' + D + '}' + (fracStr(q.L, D) !== '{' + q.L + '|' + D + '}' ? ' ＝ ' + S : '') + ' マス');
   if (q.st2 === 2) add('P は A から ' + (q.io === 'out' && m < n ? '外へ ' : '') + m + '歩 → ' + S + ' × ' + m + (q.a ? '（A(' + num(q.a) + ') から ' + (q.io === 'out' && m < n ? '左' : '右') + 'へ）' : ' マス'));
   return out;
 }
@@ -1462,7 +1462,7 @@ function drawMas(ctx, g, q) {
     const toB = Math.sign(m.L - Pd);
     for (let i = 0; i < m.n; i++) hop(ctx, g, X(Pd + toB * i * sp), X(Pd + toB * (i + 1) * sp), false, BLUE2, h);
     dotAt(ctx, g, X(Pd), YEL, 7); textAt(ctx, g, 'P', X(Pd), letY, YEL, 'center', 15);
-    textAt(ctx, g, m.L % D ? m.L + 'マスを ' + D + '歩に 分ける' : '1歩 ＝ ' + m.L / D + ' マス', 6 * d, 11 * d, ORANGE, 'left', g.W < 260 * d ? 11 : 13);   // 図の 中は 分数を 組めないので ことばで
+    textAt(ctx, g, m.L % D ? m.L + 'マスを 比の ' + D + 'つ分に 分ける' : '比の 1つ分 ＝ ' + m.L / D + ' マス', 6 * d, 11 * d, ORANGE, 'left', g.W < 260 * d ? 11 : 13);   // 図の 中は 分数を 組めないので ことばで
   }
   [['A', 0], ['B', m.L]].forEach(([s, t]) => { dotAt(ctx, g, X(t), '#fff', 5.5); textAt(ctx, g, m.a ? s + '(' + String(m.a + t).replace('-', '−') + ')' : s, X(t), letY, '#fff', 'center', 15); });
   if (!m.a) {   // AB の 長さ（マス）
